@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "sysinfo.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -510,5 +511,19 @@ sys_trace(void) {
   int tracemask;
   argint(0, &tracemask);
   p->tracemask |= tracemask;
+  return 0;
+}
+
+uint64
+sys_sysinfo(void) {
+  uint64 sysinfo;
+  argaddr(0, &sysinfo);
+  struct proc *p = myproc();
+  struct sysinfo info;
+  info.nproc = procnums();
+  info.freemem = kfreemem();
+  if (copyout(p->pagetable, sysinfo, (char *)&info, sizeof(info)) < 0) {
+    return -1;
+  }
   return 0;
 }
