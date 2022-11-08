@@ -41,3 +41,9 @@ int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 int trace(int);
 int sysinfo(void*);
+
+#ifdef LAB_PGTBL
+int pgaccess(void *base, int len, void *mask);
+// usyscall region
+int ugetpid(void);
+#endif
