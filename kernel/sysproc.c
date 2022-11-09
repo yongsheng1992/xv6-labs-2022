@@ -90,11 +90,10 @@ sys_uptime(void)
   return xticks;
 }
 
-#ifdef LAB_PGTBL
-int
+
+uint
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
   return 0;
 }
-#endif

@@ -106,7 +106,5 @@ struct proc {
   char name[16];               // Process name (debugging)
   int tracemask;               // Trace mask
   
-  #ifdef LAB_PGTBL
   struct usyscall *usyscall;
-  #endif
 };
