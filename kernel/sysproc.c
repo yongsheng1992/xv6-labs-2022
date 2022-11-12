@@ -94,6 +94,27 @@ sys_uptime(void)
 uint
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
+  uint64 p, a, res;
+  int n;
+  struct proc *proc = myproc();
+  unsigned int mask = 0;
+
+  argaddr(0, &p);
+  argint(1, &n);
+  argaddr(2, &res);
+  
+  a = PGROUNDDOWN(p);
+  for (int i = 0; i < n; i++) {
+    pte_t *pte = walk(proc->pagetable, a, 0);
+    if (*pte & PTE_A) {
+      mask |= (1 << i);
+      *pte = *pte & ~PTE_A;
+    }
+    a += PGSIZE;
+  }
+
+  if (copyout(proc->pagetable, res, (char *)&mask, sizeof(mask)) < 0) {
+    return -1;
+  }
   return 0;
 }
