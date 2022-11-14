@@ -44,4 +44,6 @@ int sysinfo(void*);
 
 int pgaccess(void *base, int len, void *mask);
 // usyscall region
+#ifdef LAB_PGTBL
 int ugetpid(void);
+#endif
