@@ -109,4 +109,9 @@ struct proc {
   #ifdef LAB_PGTBL
   struct usyscall *usyscall;
   #endif
+
+  struct trapframe *trapframeepc;
+  int alarm_interval;
+  int alarm_passed;
+  uint64 alarm_handler;
 };

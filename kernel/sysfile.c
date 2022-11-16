@@ -527,3 +527,23 @@ sys_sysinfo(void) {
   }
   return 0;
 }
+
+uint64
+sys_sigalarm(void) {
+  struct proc *p = myproc();
+  int interval;
+  uint64 handler;
+  argint(0, &interval);
+  argaddr(1, &handler);
+  p->alarm_handler = handler;
+  p->alarm_interval = interval;
+  return 0;
+}
+
+uint64
+sys_sigreturn(void) {
+  struct proc *p = myproc();
+  memmove(p->trapframe, p->trapframeepc, sizeof(struct trapframe));
+  p->alarm_passed = 0;
+  return 0;
+}

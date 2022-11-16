@@ -47,3 +47,6 @@ int pgaccess(void *base, int len, void *mask);
 #ifdef LAB_PGTBL
 int ugetpid(void);
 #endif
+
+int sigalarm(int, void *handler);
+void sigreturn(void);
