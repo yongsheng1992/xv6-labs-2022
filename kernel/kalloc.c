@@ -10,6 +10,7 @@
 #include "defs.h"
 
 void freerange(void *pa_start, void *pa_end);
+void initmapcount();
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
@@ -21,13 +22,23 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
+  int mapcount[PGTOTAL];
 } kmem;
 
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  initmapcount();
   freerange(end, (void*)PHYSTOP);
+}
+
+void
+initmapcount() {
+  int i;
+  for(i = 0; i < PGTOTAL; i++) {
+    kmem.mapcount[i] = 1;
+  }
 }
 
 void
@@ -51,12 +62,17 @@ kfree(void *pa)
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
+  acquire(&kmem.lock);
+  // if this page is mapped more than one process, just descrease mapcount and return.
+  decmapcount(pa);
+  if (kmem.mapcount[PPN(pa)] > 0) {
+    release(&kmem.lock);
+    return;
+  }
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
-
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
@@ -72,8 +88,10 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r) {
+    incmapcount(r, 0);
     kmem.freelist = r->next;
+  }
   release(&kmem.lock);
 
   if(r)
@@ -93,4 +111,27 @@ kfreemem(void) {
   }
   release(&kmem.lock);
   return count;
+}
+
+// increase page map count if a child process calls mappages.
+void
+incmapcount(void *pa, int lock) {
+  if (lock == 1) {
+    acquire(&kmem.lock);
+  }
+  kmem.mapcount[PPN(pa)] += 1;
+  if (lock == 1) {
+    release(&kmem.lock);
+  }
+}
+
+// decrease page map count if a page fault happen or child process terminate.
+void
+decmapcount(void *pa) {
+  kmem.mapcount[PPN(pa)] -= 1;
+}
+
+int
+getmapcount(void *pa) {
+  return kmem.mapcount[PPN(pa)];
 }

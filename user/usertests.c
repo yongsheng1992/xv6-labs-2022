@@ -86,6 +86,7 @@ copyout(char *s)
       printf("open(README) failed\n");
       exit(1);
     }
+    printf("read %p\n", (void*)addr);
     int n = read(fd, (void*)addr, 8192);
     if(n > 0){
       printf("read(fd, %p, 8192) returned %d, not -1 or 0\n", addr, n);

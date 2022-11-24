@@ -73,3 +73,6 @@ struct usyscall {
   int pid;  // Process ID
 };
 #endif
+
+#define PGTOTAL ((PHYSTOP- KERNBASE) >> PGSHIFT)
+#define PPN(pa) ((((uint64)pa & ~(PGSIZE - 1)) - KERNBASE)>> PGSHIFT)

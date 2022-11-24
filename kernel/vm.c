@@ -308,22 +308,28 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
-
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+
+    // printf("uvmcopy %p", PTE_FLAGS(*pte));
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    if (flags & PTE_W) {
+      *pte &= ~PTE_W;
+      *pte |= PTE_M;
+    }
+    flags = PTE_FLAGS(*pte);
+    // printf(" %p\n", PTE_FLAGS(*pte));
+
+    if(mappages(new, i, PGSIZE, (uint64)pa, flags) != 0){
+      // kfree(mem);
       goto err;
     }
+
+    incmapcount((void *)pa, 1);
   }
   return 0;
 
@@ -355,7 +361,13 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
+    
+    if (pagefault(pagetable, dstva) < 0) {
+      return -1;
+    }
+
     pa0 = walkaddr(pagetable, va0);
+
     if(pa0 == 0)
       return -1;
     n = PGSIZE - (dstva - va0);
@@ -367,6 +379,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     src += n;
     dstva = va0 + PGSIZE;
   }
+
   return 0;
 }
 
@@ -468,4 +481,45 @@ vmprint(pagetable_t pagetable) {
       }
     }
   }
+}
+
+int pagefault(pagetable_t pagetable, uint64 va) {
+  // invalid va
+  if (va >= MAXVA) {
+    return -1;
+  }
+
+  pte_t *pte = (pte_t *)walk(pagetable, va, 0);
+  // va not mapped
+  if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ) {
+    return -1;
+  }
+
+  // handle for copyout. if copyout counters non cow page,
+  // just return 1
+  if ((*pte & PTE_W)) {
+    return 1;
+  }
+
+  // if not a PTE_M page, this is no need to handle this kind of page fault
+  // just return -1
+  if ((*pte & PTE_M) == 0) {
+    return -1;
+  }
+
+  // it is time to handle cow page
+  uint64 pa = PTE2PA(*pte);
+
+  if (pa == 0) {
+    return -1;
+  }
+  pagetable = (pde_t*)kalloc();
+  if (pagetable == 0) {
+    return -1;
+  }
+
+  memmove((void *)pagetable, (void *)pa, PGSIZE);
+  *pte = (PTE_FLAGS(*pte) & ~PTE_M) | PTE_W | PA2PTE(pagetable);
+  kfree((void *)pa);
+  return 0;
 }
