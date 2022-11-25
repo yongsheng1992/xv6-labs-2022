@@ -173,6 +173,9 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  if(p->trapframeepc) {
+    kfree((void*)p->trapframeepc);
+  }
   p->trapframeepc = 0;
   p->alarm_handler = 0;
   p->alarm_interval = 0;
@@ -240,6 +243,7 @@ proc_pagetable(struct proc *p)
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
+  // vmprint(pagetable);
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   #ifdef LAB_PGTBL

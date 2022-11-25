@@ -69,7 +69,6 @@ usertrap(void)
   else if (r_scause() == 15) {
     uint64 va = r_stval();
     if (va >= p->sz || pagefault(p->pagetable, va) != 0) {
-      printf("page fault\n");
       setkilled(p);
     }
   } 

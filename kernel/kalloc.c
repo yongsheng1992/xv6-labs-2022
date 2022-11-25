@@ -37,7 +37,7 @@ void
 initmapcount() {
   int i;
   for(i = 0; i < PGTOTAL; i++) {
-    kmem.mapcount[i] = 1;
+    kmem.mapcount[i] = 0;
   }
 }
 
@@ -46,8 +46,10 @@ freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
+  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE) {
+    kmem.mapcount[PPN(p)] = 1;
     kfree(p);
+  }
 }
 
 // Free the page of physical memory pointed at by pa,
