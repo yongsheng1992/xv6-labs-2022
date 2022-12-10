@@ -50,3 +50,7 @@ int ugetpid(void);
 
 int sigalarm(int, void *handler);
 void sigreturn(void);
+
+#ifdef LAB_NET
+int connect(uint32, uint16, uint16);
+#endif
