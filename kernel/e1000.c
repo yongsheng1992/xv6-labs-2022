@@ -20,6 +20,7 @@ static struct mbuf *rx_mbufs[RX_RING_SIZE];
 static volatile uint32 *regs;
 
 struct spinlock e1000_lock;
+struct spinlock e1000_lock_recv;
 
 // called by pci_init().
 // xregs is the memory address at which the
@@ -30,6 +31,7 @@ e1000_init(uint32 *xregs)
   int i;
 
   initlock(&e1000_lock, "e1000");
+  initlock(&e1000_lock_recv, "e1000_recv");
 
   regs = xregs;
 
@@ -123,6 +125,7 @@ e1000_transmit(struct mbuf *m)
 
   regs[E1000_TDT] = (tdt + 1) % TX_RING_SIZE;
   release(&e1000_lock);
+  printf("e1000_transmit released lock\n");
   return 0;
 }
 
@@ -135,6 +138,7 @@ e1000_recv(void)
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
+  acquire(&e1000_lock_recv);
   for (;;) {
     uint32 rdt = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
     if ((rx_ring[rdt].status & E1000_RXD_STAT_DD) == 0) {
@@ -147,6 +151,7 @@ e1000_recv(void)
     rx_ring[rdt].status = 0;
     regs[E1000_RDT] = rdt;
   }
+  release(&e1000_lock_recv);
 }
 
 void
