@@ -33,6 +33,9 @@ main()
     sockinit();
 #endif
     userinit();      // first user process
+#ifdef KCSAN
+    kcsaninit();
+#endif
     __sync_synchronize();
     started = 1;
   } else {

@@ -221,3 +221,14 @@ int             sockread(struct sock *, uint64, int);
 int             sockwrite(struct sock *, uint64, int);
 void            sockrecvudp(struct mbuf*, uint32, uint16, uint16);
 #endif
+
+// stats.c
+void            statsinit(void);
+void            statsinc(void);
+
+#ifdef KCSAN
+void            kcsaninit();
+#endif
+
+// sprintf.c
+int             snprintf(char*, int, char*, ...);

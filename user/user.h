@@ -54,3 +54,5 @@ void sigreturn(void);
 #ifdef LAB_NET
 int connect(uint32, uint16, uint16);
 #endif
+
+int statistics(void*, int);
