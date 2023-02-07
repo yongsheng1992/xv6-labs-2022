@@ -19,11 +19,18 @@ struct run {
   struct run *next;
 };
 
-struct {
+struct km {
   struct spinlock lock;
   struct run *freelist;
-  int mapcount[PGTOTAL];
 } kmem;
+
+struct {
+  struct spinlock lock;
+  int mapcount[PGTOTAL];
+} kmapcount;
+
+struct km kmems[NCPU];
+char klocknames[NCPU][6];
 
 void
 kinit()
@@ -31,13 +38,19 @@ kinit()
   initlock(&kmem.lock, "kmem");
   initmapcount();
   freerange(end, (void*)PHYSTOP);
+
+  int i;
+  for (i = 0; i < NCPU; i++) {
+    snprintf(klocknames[i], 6, "kmem-%d", i);
+    initlock(&kmems[i].lock, klocknames[i]);
+  }
 }
 
 void
 initmapcount() {
   int i;
   for(i = 0; i < PGTOTAL; i++) {
-    kmem.mapcount[i] = 0;
+    kmapcount.mapcount[i] = 0;
   }
 }
 
@@ -47,7 +60,7 @@ freerange(void *pa_start, void *pa_end)
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE) {
-    kmem.mapcount[PPN(p)] = 1;
+    kmapcount.mapcount[PPN(p)] = 1;
     kfree(p);
   }
 }
@@ -67,7 +80,7 @@ kfree(void *pa)
   acquire(&kmem.lock);
   // if this page is mapped more than one process, just descrease mapcount and return.
   decmapcount(pa);
-  if (kmem.mapcount[PPN(pa)] > 0) {
+  if (kmapcount.mapcount[PPN(pa)] > 0) {
     release(&kmem.lock);
     return;
   }
@@ -119,21 +132,21 @@ kfreemem(void) {
 void
 incmapcount(void *pa, int lock) {
   if (lock == 1) {
-    acquire(&kmem.lock);
+    acquire(&kmapcount.lock);
   }
-  kmem.mapcount[PPN(pa)] += 1;
+  kmapcount.mapcount[PPN(pa)] += 1;
   if (lock == 1) {
-    release(&kmem.lock);
+    release(&kmapcount.lock);
   }
 }
 
 // decrease page map count if a page fault happen or child process terminate.
 void
 decmapcount(void *pa) {
-  kmem.mapcount[PPN(pa)] -= 1;
+  kmapcount.mapcount[PPN(pa)] -= 1;
 }
 
 int
 getmapcount(void *pa) {
-  return kmem.mapcount[PPN(pa)];
+  return kmapcount.mapcount[PPN(pa)];
 }
