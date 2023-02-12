@@ -42,7 +42,7 @@ kinit()
 
 void
 initmapcount() {
-  initlock(&kmapcount.lock, "kmem-map");
+  initlock(&kmapcount.lock, "cow");
   int i;
   for(i = 0; i < PGTOTAL; i++) {
     kmapcount.mapcount[i] = 1;
