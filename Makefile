@@ -250,7 +250,8 @@ endif
 
 ifeq ($(LAB),fs)
 UPROGS += \
-	$U/_bigfile
+	$U/_bigfile\
+	$U/_symlinktest
 endif
 
 

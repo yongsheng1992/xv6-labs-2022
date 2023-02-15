@@ -26,3 +26,4 @@
 #define SYS_sigalarm 25
 #define SYS_sigreturn 26
 #define SYS_connect   27
+#define SYS_symlink 28
