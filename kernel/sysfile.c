@@ -353,8 +353,8 @@ sys_open(void)
       return -1;
     }
     if (readi(ip, 0, (uint64)target, 0, MAXPATH) == 0) {
-      end_op();
       iunlockput(ip);
+      end_op();
       return -1;
     }
     if ((iplink = namei(target)) == 0) {
@@ -612,8 +612,6 @@ sys_symlink(void) {
   begin_op();
 
   // create a new inode for symbolic link
-  // printf("sys_symlink %d\n", T_SYMLINK);
-  // printf("traget %s path %s\n", target, path);
   if ((ip = create(path, T_SYMLINK, 0, 0)) == 0) {
     end_op();
     return -1;
@@ -625,7 +623,7 @@ sys_symlink(void) {
     return -1;
   }
 
-  iunlock(ip);
+  iunlockput(ip);
   end_op();
   return 0;
 }
