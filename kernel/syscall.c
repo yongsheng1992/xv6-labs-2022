@@ -110,6 +110,8 @@ extern uint64 sys_sigreturn(void);
 extern uint64 sys_connect(void);
 #endif
 extern uint64 sys_symlink(void);
+extern uint64 sys_mmap(void);
+extern uint64 sys_munmap(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -144,6 +146,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_connect] sys_connect,
 #endif
 [SYS_symlink] sys_symlink,
+[SYS_mmap] sys_mmap,
+[SYS_munmap] sys_munmap,
 };
 
 static char *syscallnames[] = {
@@ -177,6 +181,8 @@ static char *syscallnames[] = {
 [SYS_connect] "connect",
 #endif
 [SYS_symlink] "symlink",
+[SYS_mmap] "mmap",
+[SYS_munmap] "munmap",
 };
 
 void

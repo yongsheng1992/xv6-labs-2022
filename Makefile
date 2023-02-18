@@ -106,7 +106,7 @@ endif
 
 ifdef KCSAN
 CFLAGS += -DKCSAN
-KCSANFLAG = -fsanitize=thread
+KCSANFLAG = -fsanitize=thread -fno-inline
 endif
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
@@ -261,6 +261,10 @@ UPROGS += \
 	$U/_nettests
 endif
 
+ifeq ($(LAB), mmap)
+UPROGS += \
+	$U/_mmaptest
+endif
 UEXTRA=
 ifeq ($(LAB),util)
 	UEXTRA += user/xargstest.sh

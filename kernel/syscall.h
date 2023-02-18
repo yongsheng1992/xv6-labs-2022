@@ -27,3 +27,5 @@
 #define SYS_sigreturn 26
 #define SYS_connect   27
 #define SYS_symlink 28
+#define SYS_mmap 29
+#define SYS_munmap 30
