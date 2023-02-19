@@ -81,6 +81,19 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+// (va - vma.start) / PGSIZE + vma.offset is the actual offset of a file.
+struct vma {
+  uint64 vastart;
+  uint64 vaend;
+  int length;
+  int offset;
+  struct file *f;
+  int used;
+  int mode;
+  struct inode *ip;
+  int flags;
+};
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -110,6 +123,7 @@ struct proc {
   struct usyscall *usyscall;
   #endif
 
+  struct vma vma[16];
   struct trapframe *trapframeepc;
   int alarm_interval;
   int alarm_passed;

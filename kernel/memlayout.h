@@ -69,6 +69,8 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+#define MMAPBASE (TRAPFRAME - (1L << 31))
+#define MMAPMAX (268*1024*1024)
 
 #ifdef LAB_PGTBL
 #define USYSCALL (TRAPFRAME - PGSIZE)

@@ -37,6 +37,7 @@ void
 _v1(char *p)
 {
   int i;
+  printf("v1 start.. %p %p\n", p, &i);
   for (i = 0; i < PGSIZE*2; i++) {
     if (i < PGSIZE + (PGSIZE/2)) {
       if (p[i] != 'A') {
@@ -50,6 +51,7 @@ _v1(char *p)
       }
     }
   }
+  printf("v1 end\n");
 }
 
 //

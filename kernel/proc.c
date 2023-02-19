@@ -180,6 +180,24 @@ freeproc(struct proc *p)
   p->alarm_handler = 0;
   p->alarm_interval = 0;
   p->alarm_passed = 0;
+
+  // realse vma for mmap.
+  int i;
+  uint64 va;
+  struct vma *vma;
+  for (i = 0; i < 16; i++) {
+    vma = &p->vma[i];
+    if (vma->used) {
+      for (va = vma->vastart; va < vma->vaend; va += PGSIZE) {
+        pte_t *pte = walk(p->pagetable, va, 0);
+        if (pte && *pte & PTE_V) {
+          uvmunmap(p->pagetable, va, 1, 1);
+        }
+        vma->length -= PGSIZE;
+      }
+      vma->used = 0;
+    }
+  }
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -333,6 +351,22 @@ fork(void)
   }
   np->sz = p->sz;
 
+  // Copy mmap form parent to child.
+  uint64 va, pa;
+  for (i = 0; i < 16; i++) {
+    if (p->vma[i].used == 1) {
+        np->vma[i] = p->vma[i];
+        // filedup(np->vma[i].f);
+        for (va = np->vma[i].vastart; va < np->vma[i].vaend; va += PGSIZE) {
+          pte_t *pte = walk(p->pagetable, va, 0);
+          if (pte && *pte & PTE_V) {
+            pa = (uint64)PTE2PA(*pte);
+            mappages(np->pagetable, va, PGSIZE, (uint64)pa, PTE_FLAGS(*pte));
+            incmapcount((void*)pa, 1);
+          }
+        }
+    }
+  }
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 

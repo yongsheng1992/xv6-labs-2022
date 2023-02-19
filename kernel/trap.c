@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -71,7 +72,17 @@ usertrap(void)
     if (va >= p->sz || pagefault(p->pagetable, va) != 0) {
       setkilled(p);
     }
-  } 
+  }
+  else if (r_scause() == 13) {
+    uint64 va = r_stval();
+    if (va < MMAPBASE) {
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      setkilled(p);
+    } else {
+      pagefault(p->pagetable, va);
+    }
+  }
   else if((which_dev = devintr()) != 0){
     // ok
   } else {
@@ -237,3 +248,73 @@ devintr()
   }
 }
 
+int pagefault(pagetable_t pagetable, uint64 va) {
+  // invalid va
+  if (va >= MAXVA) {
+    return -1;
+  }
+  
+  // struct proc *proc = myproc();
+  if (va >= MMAPBASE) {
+      struct proc *proc = myproc();
+      uint64 va = r_stval();
+      struct vma *vma = &proc->vma[(va-MMAPBASE)/MMAPMAX];
+      int offset = PGROUNDDOWN(va) - vma->vastart + vma->offset;
+      // printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), proc->pid);
+    // printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      uint64 *pa = (uint64 *)kalloc();
+      // printf("kalloc %p\n", pa);
+      int perm = 0;
+      if (vma->mode & PROT_READ) {
+        perm |= PTE_R;
+      }
+      if (vma->mode & PROT_WRITE) {
+        perm |= PTE_W;
+      }
+      if (vma->mode & PROT_EXEC) {
+        perm |= PTE_U;
+      }
+      memset(pa, 0, PGSIZE);
+      ilock(vma->ip);
+      readi(vma->ip, 0, (uint64)pa, offset, PGSIZE);
+      iunlock(vma->ip);
+      if (mappages(proc->pagetable, va, PGSIZE,  (uint64)pa, perm | PTE_U) < 0) {
+        return -1;
+      }
+      return 0;
+  }
+
+  pte_t *pte = (pte_t *)walk(pagetable, va, 0);
+  // va not mapped
+  if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ) {
+    return -1;
+  }
+
+  // handle for copyout. if copyout counters non cow page,
+  // just return 1
+  if ((*pte & PTE_W)) {
+    return 1;
+  }
+
+  // if not a PTE_M page, this is no need to handle this kind of page fault
+  // just return -1
+  if ((*pte & PTE_M) == 0) {
+    return -1;
+  }
+
+  // it is time to handle cow page
+  uint64 pa = PTE2PA(*pte);
+
+  if (pa == 0) {
+    return -1;
+  }
+  pagetable = (pde_t*)kalloc();
+  if (pagetable == 0) {
+    return -1;
+  }
+
+  memmove((void *)pagetable, (void *)pa, PGSIZE);
+  *pte = (PTE_FLAGS(*pte) & ~PTE_M) | PTE_W | PA2PTE(pagetable);
+  kfree((void *)pa);
+  return 0;
+}

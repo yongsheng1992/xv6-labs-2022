@@ -16,6 +16,7 @@
 #include "file.h"
 #include "fcntl.h"
 #include "sysinfo.h"
+#include "memlayout.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -631,11 +632,102 @@ sys_symlink(void) {
 uint64
 sys_mmap(void)
 {
-  return -1;
+  uint64 p;
+  int length;
+  int prot;
+  int flags;
+  int fd;
+  int offset;
+  struct file *file;
+  struct proc *proc = myproc();
+  int i;
+
+  argaddr(0, &p);
+  argint(1, &length);
+  argint(2, &prot);
+  argint(3, &flags);
+  argfd(4, &fd, &file);
+  argint(5, &offset);
+
+  if (prot & PROT_READ) {
+    if (file->readable !=1) {
+      return -1;
+    }
+  }
+  if (prot & PROT_WRITE) {
+    if (file->writable != 1 && (flags & MAP_PRIVATE) == 0) {
+      return -1;
+    }
+  }
+
+  struct vma *vma;
+  uint64 va = MMAPBASE;
+
+  for (i = 0; i < 16; i++) {
+    if (proc->vma[i].used == 0) {
+      break;
+    }
+    va += MMAPMAX;
+  }
+
+  if (i >= 16) {
+    return -1;
+  }
+
+  vma = &proc->vma[i];
+  vma->f = file;
+  vma->vastart = va;
+  vma->vaend = va + length;
+  vma->used = 1;
+  vma->offset = offset;
+  vma->ip = file->ip;
+  vma->mode = prot;
+  vma->flags = flags;
+  vma->length = length;
+
+  filedup(file);
+  return va;
 }
 
 uint64
 sys_munmap(void)
 {
-  return -1;
+  struct proc *proc = myproc();
+  uint64 va;
+  uint64 pa;
+  int length;
+
+  argaddr(0, &va);
+  argint(1, &length);
+
+  int npages = length/PGSIZE;
+  uint64 a;
+  pte_t *pte = 0;
+  struct vma *vma = &proc->vma[(va-MMAPBASE)/MMAPMAX];
+  int offset = va - vma->vastart + vma->offset;
+  // write back
+  for (a = va; a < va + npages*PGSIZE; a += PGSIZE) {
+    // write back
+    pte = walk(proc->pagetable, a, 0);
+    if (vma->flags & MAP_SHARED && pte && *pte & PTE_V) {
+        pa = (uint64)PTE2PA(*pte);
+        begin_op();
+        ilock(vma->ip);
+        writei(vma->ip, 0, pa, offset, PGSIZE);
+        iunlock(vma->ip);
+        end_op();
+    }
+    offset += PGSIZE;
+    vma->length -= PGSIZE;
+    if (pte && *pte & PTE_V) {
+      uvmunmap(proc->pagetable, a, 1, 1);
+      pte = 0;
+    }
+  }
+  
+  if (vma->length == 0) {
+    vma->used = 0;
+    fileclose(vma->f);
+  }
+  return 0;
 }
